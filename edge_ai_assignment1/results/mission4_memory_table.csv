@@ -1,0 +1,6 @@
+hidden_width,parameters,fp32_weight_bytes,int8_weight_bytes,macs_per_prediction,fp32_activation_bytes_batch1_estimate,fp32_weights_fit_300kb_sram,int8_weights_fit_300kb_sram,fp32_weights_plus_activation_fit_300kb,int8_weights_plus_fp32_activation_fit_300kb,fp32_weights_fit_8mb_psram,int8_weights_fit_8mb_psram
+32,1281,5124,1281,1216,256,True,True,True,True,True,True
+128,17409,69636,17409,17152,1024,True,True,True,True,True,True
+256,67585,270340,67585,67072,2048,True,True,True,True,True,True
+512,266241,1064964,266241,265216,4096,False,True,False,True,True,True
+2048,4210689,16842756,4210689,4206592,16384,False,False,False,False,False,True

@@ -1,0 +1,13 @@
+metric,value,assumption
+sram_budget_bytes,307200,300 KiB
+psram_budget_bytes,8388608,8 MiB
+max_width_fp32_weights_only,273,weights <= 300 KiB
+max_width_int8_weights_only,550,weights <= 300 KiB
+max_width_fp32_plus_two_fp32_activation_buffers,272,weights and conservative activation estimate <= 300 KiB
+max_width_int8_weights_plus_fp32_activation_buffers,546,INT8 weights plus conservative FP32 activations <= 300 KiB
+selected_model_parameters,1281,5-32-32-1 including biases
+selected_model_macs,1216,5-32-32-1 per prediction
+esp32s3_clock_hz,240000000,Espressif product specification
+ideal_one_mac_per_cycle_seconds,5.066666666666667e-06,compute-only lower bound; no runtime or memory overhead
+ideal_one_mac_per_cycle_microseconds,5.066666666666666,compute-only lower bound; not a measured board result
+selected_activation_estimate_bytes_batch1,256,two FP32 hidden-width activation buffers

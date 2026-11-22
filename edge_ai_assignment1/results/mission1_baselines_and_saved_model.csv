@@ -1,0 +1,4 @@
+model,hidden,params,train_mae_days,val_mae_days,normalization
+mean_baseline,,0,52.50393295288086,55.73086929321289,not_applicable
+linear_lstsq,,6,22.08280646224927,23.15376853942871,not_required
+existing_saved_network,"32,32",1281,3.9772870540618896,4.912317752838135,training_split_statistics

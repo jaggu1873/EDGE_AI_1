@@ -1,0 +1,3 @@
+hidden,normalization,train_mae_days,val_mae_days,parameters,epochs
+"32,32",training_mean_std,3.9772870540618896,4.912317752838135,1281,1500
+"32,32",none,10.92068862915039,11.254345893859863,1281,1500

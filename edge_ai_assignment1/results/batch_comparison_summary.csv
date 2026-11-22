@@ -1,0 +1,3 @@
+mode,request_count,elapsed_ms,server_total_sum_ms,network_framework_ms,average_round_trip_ms,max_abs_prediction_difference_days,mean_abs_prediction_difference_days
+individual_predict,400,1502.2436589997596,116.452,1385.7916589997596,3.755609147499399,0.0,0.0
+one_predict_batch,1,8.356038999409066,1.424,6.932038999409066,8.356038999409066,0.0,0.0
