@@ -30,15 +30,11 @@ N_PARAMS = sum(p.numel() for p in net.parameters())
 
 
 class Reading(BaseModel):
-    # TODO Mission 3: a doorbell will send you glitches like the ones you found in Mission 1.
-    # Give every field a sensible range, e.g. Field(ge=..., le=...), so a glitch is refused
-    # with HTTP 422 instead of being answered with a made-up number. Base the limits on what a
-    # real sensor can report, not on your data's min and max: real readings must still get answers.
-    battery_v: float
-    temp_c: float
-    rings_per_day: float
-    wifi_rssi_dbm: float
-    age_months: float
+    battery_v: float = Field(ge=2.5, le=4.5)
+    temp_c: float = Field(ge=-40, le=85)
+    rings_per_day: float = Field(ge=0, le=100)
+    wifi_rssi_dbm: float = Field(ge=-100, le=-20)
+    age_months: float = Field(ge=0, le=120)
 
 
 class Batch(BaseModel):
@@ -51,14 +47,41 @@ ms = lambda t0: round((time.perf_counter() - t0) * 1000, 3)
 
 @app.get("/model_info")
 def model_info():
-    # TODO Mission 2 + 4: return your per-layer table, worked out FROM THE NETWORK (net.net),
-    # not typed in by hand, so it stays right if you change the layer sizes. Exactly these keys:
-    # {"layers": [{"name": "linear1", "in": 5, "out": 32, "params": ..., "bytes_f32": ..., "macs": ...}, ...],
-    #  "total_params": ..., "total_bytes_f32": ..., "total_bytes_int8": ..., "total_macs": ...,
-    #  "fits_300kb_sram_f32": true/false, "fits_300kb_sram_int8": true/false}
-    # Count only the Linear layers (ReLU has no parameters). Clue: a Linear layer m has
-    # m.in_features and m.out_features.
-    return {"layers": [], "total_params": 0}
+    layers = []
+    total_params = total_bytes_f32 = total_bytes_int8 = total_macs = 0
+    linear_index = 0
+    for module in net.net:
+        if not isinstance(module, torch.nn.Linear):
+            continue
+        linear_index += 1
+        in_features = module.in_features
+        out_features = module.out_features
+        params = in_features * out_features + out_features
+        macs = in_features * out_features
+        bytes_f32 = params * 4
+        bytes_int8 = params
+        layers.append({
+            "name": f"linear{linear_index}",
+            "in": in_features,
+            "out": out_features,
+            "params": params,
+            "bytes_f32": bytes_f32,
+            "macs": macs,
+        })
+        total_params += params
+        total_bytes_f32 += bytes_f32
+        total_bytes_int8 += bytes_int8
+        total_macs += macs
+    sram_limit = 300 * 1024
+    return {
+        "layers": layers,
+        "total_params": total_params,
+        "total_bytes_f32": total_bytes_f32,
+        "total_bytes_int8": total_bytes_int8,
+        "total_macs": total_macs,
+        "fits_300kb_sram_f32": total_bytes_f32 <= sram_limit,
+        "fits_300kb_sram_int8": total_bytes_int8 <= sram_limit,
+    }
 
 
 @app.get("/health")
@@ -75,13 +98,17 @@ async def run(request: Request, schema):
         return JSONResponse(status_code=422, content={"error": "bad reading", "detail": json.loads(e.json())})
     t["parse"] = ms(t0)
     rows = data.rows if isinstance(data, Batch) else [data]
-    # TODO Mission 3: time each of the three stages below the same way "parse" is timed above,
-    # storing them as t["normalise"], t["inference"] and t["build"].
+    t0 = time.perf_counter()
     x = (np.array([[getattr(r, f) for f in FEATURES] for r in rows], np.float32) - MU) / SD
+    t["normalise"] = ms(t0)
+    t0 = time.perf_counter()
     with torch.no_grad():
         y = net(torch.from_numpy(x)).numpy()
+    t["inference"] = ms(t0)
+    t0 = time.perf_counter()
     days = [round(float(v), 2) for v in np.maximum(y, 0)]
     body = {"days_left": days if isinstance(data, Batch) else days[0]}
+    t["build"] = ms(t0)
     t["server_total"] = ms(t_all)
     body["timings_ms"] = t
     return body

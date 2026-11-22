@@ -24,9 +24,13 @@ a = ap.parse_args()
 hidden = tuple(int(h) for h in a.hidden.split(","))
 
 df = pd.read_csv(f"data/team_{a.team:02d}_train.csv")
-# TODO Mission 1: find the sensor glitches (plot every column first!) and write a rule that
-# marks them. Say in your report how many you found and why each rule is safe.
-bad = np.zeros(len(df), dtype=bool)
+bad = (
+    (df["battery_v"] < 2.5) | (df["battery_v"] > 4.5)
+    | (df["temp_c"] < -40) | (df["temp_c"] > 85)
+    | (df["rings_per_day"] < 0) | (df["rings_per_day"] > 100)
+    | (df["wifi_rssi_dbm"] < -100) | (df["wifi_rssi_dbm"] > -20)
+    | (df["age_months"] < 0) | (df["age_months"] > 120)
+)
 print(f"{len(df)} rows, {bad.sum()} glitch rows dropped")
 df = df[~bad]
 
@@ -35,13 +39,18 @@ idx = rng.permutation(len(df)); n_val = len(df) // 5
 val, tr = df.iloc[idx[:n_val]], df.iloc[idx[n_val:]]
 X, y = tr[FEATURES].to_numpy(np.float32), tr.days_left.to_numpy(np.float32)
 Xv, yv = val[FEATURES].to_numpy(np.float32), val.days_left.to_numpy(np.float32)
-# TODO Mission 2: normalisation. Why must mu and sd come from the TRAINING rows only?
-mu, sd = np.zeros(X.shape[1], np.float32), np.ones(X.shape[1], np.float32)
+# Normalise with training-only statistics to avoid validation data leaking into training.
+mu = X.mean(axis=0, dtype=np.float32)
+sd = X.std(axis=0, dtype=np.float32)
+sd = np.where(sd < 1e-6, np.ones_like(sd), sd).astype(np.float32)
 
 mae = lambda p, t: float(np.mean(np.abs(p - t)))
 print(f"baseline (predict the mean): {mae(np.full_like(yv, y.mean()), yv):.2f} days")
-# TODO Mission 1: a straight-line model (linear regression) as the second baseline.
-# Use np.linalg.lstsq on [X, 1]. Print its validation MAE the same way as the line above.
+linear_x = np.column_stack([X, np.ones(len(X), dtype=np.float32)])
+linear_xv = np.column_stack([Xv, np.ones(len(Xv), dtype=np.float32)])
+linear_w, _, _, _ = np.linalg.lstsq(linear_x, y, rcond=None)
+linear_pred = linear_xv @ linear_w
+print(f"baseline (linear regression): {mae(linear_pred, yv):.2f} days")
 
 torch.manual_seed(0)
 net = BatteryNet(hidden)
@@ -59,6 +68,8 @@ for ep in range(a.epochs):
             print(f"  epoch {ep:4d}  val MAE {mae(net(Xvt).numpy(), yv):.2f} days")
 with torch.no_grad():
     val_mae = mae(net(Xvt).numpy(), yv)
+    train_mae = mae(net(Xt).numpy(), yt.numpy())
+print(f"network {hidden}:            train MAE {train_mae:.2f} days")
 print(f"network {hidden}:            {val_mae:.2f} days")
 
 os.makedirs("model", exist_ok=True)
