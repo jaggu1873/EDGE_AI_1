@@ -153,6 +153,10 @@ POST /predict_batch   {"rows": [reading, ...]} -> {"days_left": [...], "timings_
 broken reading        -> HTTP 422 with the reason
 ```
 
+FastAPI parses and validates the request body before the prediction function runs. For
+compatibility, `parse` is reported as `0.0` ms, and `server_total` measures only the work
+after validation; client round-trip time still includes request parsing.
+
 **Columns:** `battery_v` (V), `temp_c` (°C), `rings_per_day`, `wifi_rssi_dbm` (dBm, closer to 0 is stronger), `age_months`, `days_left` (the answer).
 
 **Useful commands**

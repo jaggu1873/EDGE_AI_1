@@ -14,9 +14,8 @@ import time
 
 import numpy as np
 import torch
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, ValidationError
+from fastapi import FastAPI
+from pydantic import BaseModel, Field
 
 from app.model import FEATURES, BatteryNet
 
@@ -89,14 +88,8 @@ def health():
     return {"status": "ok", "team": cfg["team"], "params": N_PARAMS, "val_mae": cfg["val_mae"]}
 
 
-async def run(request: Request, schema):
-    t_all = time.perf_counter(); t = {}
-    t0 = time.perf_counter()
-    try:
-        data = schema.model_validate_json(await request.body())
-    except ValidationError as e:
-        return JSONResponse(status_code=422, content={"error": "bad reading", "detail": json.loads(e.json())})
-    t["parse"] = ms(t0)
+def run(data: Reading | Batch):
+    t_all = time.perf_counter(); t = {"parse": 0.0}  # FastAPI parses the body before this helper runs.
     rows = data.rows if isinstance(data, Batch) else [data]
     t0 = time.perf_counter()
     x = (np.array([[getattr(r, f) for f in FEATURES] for r in rows], np.float32) - MU) / SD
@@ -115,10 +108,10 @@ async def run(request: Request, schema):
 
 
 @app.post("/predict")
-async def predict(request: Request):
-    return await run(request, Reading)
+async def predict(data: Reading):
+    return run(data)
 
 
 @app.post("/predict_batch")
-async def predict_batch(request: Request):
-    return await run(request, Batch)
+async def predict_batch(data: Batch):
+    return run(data)
